@@ -3,6 +3,14 @@ import statistics
 import quantihack as qh
 
 
+initialCapital = 1000000.0
+cashUtilizationMax = 0.7
+perEventAllocation = 0.15
+btcAllocationMax = 0.03
+maxPositionSize = 10000
+stopLossAtrMultiplier = 3.0
+
+
 eventPositions = {}
 eventEntryTimes = {}
 fallbackSchedule = []
@@ -61,7 +69,7 @@ def getDirection(headline):
 
 
 def estimateCash(positions):
-    cash = 1000000.0
+    cash = initialCapital
     for symbol, position in positions.items():
         qty = float(position.get("qty", 0))
         avgEntryPrice = float(position.get("avg_entry_price", 0))
@@ -76,8 +84,6 @@ def estimatePortfolioValue(prices, positions, cash):
         qty = float(position.get("qty", 0))
         markPrice = float(prices.get(symbol, {}).get("price", position.get("avg_entry_price", 0)))
         value += qty * markPrice
-    if value < 0:
-        return 0.0
     return value
 
 
@@ -104,8 +110,9 @@ def getFallbackSchedule(currentTimeMs):
     if not fallbackSchedule:
         needsRefresh = True
     else:
-        latestEventTime = max(int(item.get("time", 0)) for item in fallbackSchedule)
-        if latestEventTime < currentTimeMs - 60000:
+        validTimes = [int(item.get("time", 0)) for item in fallbackSchedule if int(item.get("time", 0)) > 0]
+        latestEventTime = max(validTimes) if validTimes else 0
+        if latestEventTime == 0 or latestEventTime < currentTimeMs - 60000:
             needsRefresh = True
     if needsRefresh:
         offsets = [90000, 150000, 210000, 270000]
@@ -151,7 +158,7 @@ def on_tick(prices, positions, orders, history):
 
     estimatedCash = estimateCash(positions)
     portfolioValue = estimatePortfolioValue(prices, positions, estimatedCash)
-    maxSpend = max(0.0, estimatedCash * 0.7)
+    maxSpend = max(0.0, estimatedCash * cashUtilizationMax)
     spendUsed = 0.0
 
     for event in upcomingEvents:
@@ -173,7 +180,7 @@ def on_tick(prices, positions, orders, history):
             validSymbols = [symbol for symbol in instruments if symbol in prices]
             if not validSymbols:
                 continue
-            perEventBudget = portfolioValue * 0.15
+            perEventBudget = portfolioValue * perEventAllocation
             perSymbolBudget = perEventBudget / float(len(validSymbols))
             eventPositions[eventKey] = {}
             for symbol in validSymbols:
@@ -189,10 +196,10 @@ def on_tick(prices, positions, orders, history):
 
                 symbolBudget = perSymbolBudget
                 if symbol == "CMD-BTC":
-                    symbolBudget = min(symbolBudget, portfolioValue * 0.03)
+                    symbolBudget = min(symbolBudget, portfolioValue * btcAllocationMax)
 
                 positionQty = int(float(positions.get(symbol, {}).get("qty", 0)))
-                room = 10000 - abs(positionQty)
+                room = maxPositionSize - abs(positionQty)
                 if room <= 0:
                     continue
 
@@ -237,7 +244,7 @@ def on_tick(prices, positions, orders, history):
             px = float(prices.get(symbol, {}).get("price", posData.get("avg_entry_price", 0)))
             avgEntryPrice = float(posData.get("avg_entry_price", px))
             atr = atrFromHistory(symbol)
-            stopDistance = 3.0 * atr
+            stopDistance = stopLossAtrMultiplier * atr
             stopTriggered = False
             if stopDistance > 0:
                 if qtyNow > 0 and px <= avgEntryPrice - stopDistance:
