@@ -9,6 +9,7 @@ perEventAllocation = 0.15
 btcAllocationMax = 0.03
 maxPositionSize = 10000
 stopLossAtrMultiplier = 3.0
+maxOrdersPerTick = 10
 
 
 eventPositions = {}
@@ -95,10 +96,8 @@ def atrFromHistory(symbol):
     if not samples or len(samples) < 2:
         return 0.0
     changes = []
-    index = 1
-    while index < len(samples):
+    for index in range(1, len(samples)):
         changes.append(abs(float(samples[index]) - float(samples[index - 1])))
-        index += 1
     if not changes:
         return 0.0
     return statistics.mean(changes)
@@ -262,7 +261,7 @@ def on_tick(prices, positions, orders, history):
             eventPositions.pop(eventKey, None)
 
     openPositionCount = sum(1 for symbol in positions if int(float(positions[symbol].get("qty", 0))) != 0)
-    sentOrders = ords[:10]
+    sentOrders = ords[:maxOrdersPerTick]
     print(
         "tick",
         tickCount,
