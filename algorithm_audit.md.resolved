@@ -1,0 +1,117 @@
+# Quantihack Algorithm Suite — Full Audit (Updated)
+
+**Team:** Coeus | **Date:** 2026-03-24 16:39 UTC | **Market closes:** ~22:00 UTC
+
+**Portfolio at 16:31 UTC**
+| Metric | Value |
+|---|---|
+| Total PnL | ~+$150K |
+| All algos aligned | ✅ 10% stop, no TP, $5K reserve |
+
+---
+
+## Algorithm Summary
+
+| Algo | File | Strategy | P&L | Config |
+|---|---|---|---|---|
+| **BINI** | [bini.py](file:///Users/architbhardwaj/Desktop/QuantiHack/bini.py) | Bollinger Band Breakout | +$91.3K | 10% stop, 8 pos, $5K reserve |
+| **STRAT2** | [strat2.py](file:///Users/architbhardwaj/Desktop/QuantiHack/strat2.py) | Z-Score Momentum | +$55.1K | 10% stop, 8 pos, $5K reserve |
+| **STRAT3** | [strat3.py](file:///Users/architbhardwaj/Desktop/QuantiHack/strat3.py) | **Cross-Asset Contagion** | +$5.6K | 10% stop, 8 pos, $5K reserve |
+| **STRAT4** | [strat4.py](file:///Users/architbhardwaj/Desktop/QuantiHack/strat4.py) | Relative Strength | +$67.9K | 10% stop, 8 pos, $5K reserve |
+| **STRAT5** | [strat5.py](file:///Users/architbhardwaj/Desktop/QuantiHack/strat5.py) | CUSUM Event Detector | +$138.5K | 10% stop, 5 pos, $5K reserve |
+
+---
+
+## 1. BINI — Bollinger Band Breakout | +$91.3K
+
+**Entry:** Price > upper BB (20-period, 2σ) + price > SMA₅₀ + RSI 35-85 + 2/5 ticks rising
+**Exit:** 10% hard stop only
+**Strengths:** Adaptive thresholds, catches genuine breakouts
+**Weakness:** Late entry (move already underway when BB breaks)
+
+---
+
+## 2. STRAT2 — Z-Score Momentum | +$55.1K
+
+**Entry:** Z-score > 2.5 (20-period) + 3 consecutive rising + RSI < 85
+**Exit:** 10% hard stop only *(aggressified: was 2.5% stop + 7% TP + trailing)*
+**Strengths:** Statistically principled, adapts to instrument volatility
+**Weakness:** Requires 20+ tick history for reliable Z-score
+
+---
+
+## 3. STRAT3 — Cross-Asset Contagion Detector ⭐ NEW | +$5.6K
+
+**Strategy:** Leader-follower information diffusion. When one instrument surges >1.2%, buys correlated peers that haven't moved yet.
+
+**Sector map:**
+- TECH: NVDA ↔ MSFT ↔ GOOG ↔ AAPL ↔ META ↔ AMZN
+- GRAINS: WHEAT ↔ COFFEE
+- ENERGY: OIL ↔ NATGAS
+- METALS: GOLD ↔ PLAT ↔ COPPER
+- INDICES: SP500 ↔ NIKKEI ↔ FTSE
+
+**Entry:** Detect leader (>1.2% from recent mean) → buy followers (<0.5% move). Falls back to individual momentum.
+**Exit:** 10% hard stop only
+**Unique value:** Only algo using cross-instrument signals (all others analyze instruments independently)
+
+Based on: Lo & MacKinlay (1990) cross-autocorrelation, Hou (2007) information diffusion lead-lag effect.
+
+---
+
+## 4. STRAT4 — Relative Strength | +$67.9K
+
+**Entry:** Ranks all 26 instruments by momentum, buys top movers (>0.05% momentum)
+**Exit:** 10% hard stop only *(aggressified: was 1.5% stop + 3% TP)*
+**Strengths:** Zero API dependency (uses only `history` param), never fails
+**Weakness:** No selectivity filter — buys any positive momentum
+
+---
+
+## 5. STRAT5 — CUSUM Event Detector ⭐ STAR | +$138.5K
+
+**Strategy:** Page's CUSUM algorithm from statistical process control. Accumulates returns above noise floor (0.1%/tick). Event confirmed when accumulated sum > 1.5%.
+
+```
+cusum = max(0, cusum + return - 0.001)
+if cusum > 0.015 → EVENT DETECTED
+```
+
+**Entry:** CUSUM > 0.015 + 3/5 ticks rising + total move > 1%
+**Exit:** 10% hard stop only
+**Why it wins:** Requires sustained momentum (not single spikes), low false positives
+
+---
+
+## Risk Profile (All Algos Aligned)
+
+| Parameter | Value |
+|---|---|
+| Hard stop | -10% across all |
+| Take profit | None (let winners run) |
+| Trailing stop | None |
+| Cash reserve | $5K each |
+| Max positions | 8 each (5 for STRAT5) |
+| Max downside | ~$70K if everything stops out simultaneously |
+| Net floor | Still positive (+$80K) even in worst case |
+
+---
+
+## Key Lessons (Session-to-Date)
+
+1. **Tight stops killed early returns** — switching from 1.5-3% to 10% was the most impactful change
+2. **Take-profits are harmful** in trending markets — STRAT4's old 3% TP sold into +50% moves
+3. **CUSUM > Bollinger > Z-score > momentum** for event detection
+4. **Cross-instrument signals** (new STRAT3) exploit information diffusion lag
+5. **Capital deployment** remains biggest drag — ~40% cash idle
+
+## Action Plan (16:39 → 22:00 UTC)
+
+> [!IMPORTANT]
+> **Do NOT redeploy algos.** Every redeployment sells positions and resets accumulated gains. Let them run.
+
+- ✅ All 5 algos running and profitable
+- ✅ All aligned with aggressive settings
+- 🔍 Check back in 1-2 hours
+- 🔍 Watch news feed for new events
+- ⚠️ Only intervene if an algo shows $0 or rapidly negative P&L
